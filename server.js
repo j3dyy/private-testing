@@ -35,46 +35,40 @@ function createServer() {
 }
 
 if (!isMainThread) {
-  // Worker thread for FAIL_MODE=cpu: runs HTTP server so /healthz still answers
+  // Worker thread for cpu mode: runs HTTP server so /healthz still answers
   const server = createServer();
   server.listen(PORT, () => {
-    console.log(`Worker thread HTTP server listening on port ${PORT}`);
+    console.log(`listening on :${PORT}`);
     if (parentPort) {
       parentPort.postMessage('ready');
     }
   });
 } else {
-  console.log(`Starting service: APP_VERSION=${APP_VERSION}, FAIL_MODE=${FAIL_MODE}, PORT=${PORT}`);
-
   if (FAIL_MODE === 'cpu') {
-    // Start worker thread to serve /healthz, then burn CPU on main thread
     const worker = new Worker(__filename);
 
     worker.on('message', (msg) => {
       if (msg === 'ready') {
-        console.log('FAIL_MODE=cpu: worker is ready, starting main thread busy loop at ~100% CPU');
         while (true) {}
       }
     });
 
     worker.on('error', (err) => {
-      console.error('Worker thread error:', err);
+      console.error('Worker error:', err);
     });
   } else if (FAIL_MODE === 'crash') {
     const server = createServer();
     server.listen(PORT, () => {
-      console.log(`Server listening on port ${PORT}`);
-      console.log('FAIL_MODE=crash: will exit(1) after 20 seconds');
+      console.log(`listening on :${PORT}`);
+      console.log('connecting to database…');
       setTimeout(() => {
-        console.error('FAIL_MODE=crash: 20 seconds elapsed, exiting with code 1');
-        process.exit(1);
+        throw new Error('connect ECONNREFUSED 10.43.0.12:5432 — database connection failed after 3 attempts');
       }, 20000);
     });
   } else if (FAIL_MODE === 'memory') {
     const server = createServer();
     server.listen(PORT, () => {
-      console.log(`Server listening on port ${PORT}`);
-      console.log('FAIL_MODE=memory: allocating 50 MB every 5 seconds');
+      console.log(`listening on :${PORT}`);
       const leak = [];
       setInterval(() => {
         const chunk = Buffer.alloc(50 * 1024 * 1024, 1);
@@ -86,7 +80,7 @@ if (!isMainThread) {
     // unset, "ok", or "errors"
     const server = createServer();
     server.listen(PORT, () => {
-      console.log(`Server listening on port ${PORT}`);
+      console.log(`listening on :${PORT}`);
     });
   }
 }
